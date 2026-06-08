@@ -1,0 +1,816 @@
+-- THE STRONGEST BATTLEGROUNDS
+-- Full Script With NeverLose UI
+-- Built From Scratch By Pro Scripter
+-- All Remotes Combined & Organized
+
+--[[
+    ═══════════════════════════════
+              SERVICES
+    ═══════════════════════════════
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+--[[
+    ═══════════════════════════════
+             UI LIBRARY
+    ═══════════════════════════════
+]]
+
+local Library = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/ImInsane-1337/neverlose-ui/refs/heads/main/source/library.lua"
+))()
+
+local CheatName = "TSB Script"
+
+Library.Folders = {
+    Directory = CheatName,
+    Configs = CheatName .. "/Configs",
+    Assets = CheatName .. "/Assets",
+}
+
+local Accent = Color3.fromRGB(255, 80, 80)
+local Gradient = Color3.fromRGB(120, 20, 20)
+
+Library.Theme.Accent = Accent
+Library.Theme.AccentGradient = Gradient
+Library:ChangeTheme("Accent", Accent)
+Library:ChangeTheme("AccentGradient", Gradient)
+
+local Window = Library:Window({
+    Name = "TSB Script",
+    SubName = "Strongest Battlegrounds",
+    Logo = "120959262762131"
+})
+
+local KeybindList = Library:KeybindList("Keybinds")
+
+Library:Watermark({
+    "TSB Script",
+    "Pro Scripter",
+    120959262762131
+})
+
+-- // FPS Watermark Update
+task.spawn(function()
+    while true do
+        local FPS = math.floor(1 / RunService.RenderStepped:Wait())
+        Library:Watermark({
+            "TSB Script",
+            "Pro Scripter",
+            120959262762131,
+            "FPS: " .. FPS
+        })
+        task.wait(0.5)
+    end
+end)
+
+--[[
+    ═══════════════════════════════
+           FLAGS / SETTINGS
+    ═══════════════════════════════
+]]
+
+local Flags = {
+    AutoCombo      = false,
+    AutoSkill      = false,
+    AutoBlock      = false,
+    KillAura       = false,
+    AutoVelocity   = false,
+    VelocityDist   = 30,
+    AttackRange    = 20,
+    ComboDelay     = 0.15,
+    SkillDelay     = 0.2,
+    ESPEnabled     = false,
+    ESPColor       = Color3.fromRGB(255, 80, 80),
+    SpeedEnabled   = false,
+    SpeedValue     = 16,
+}
+
+--[[
+    ═══════════════════════════════
+           UTILITY FUNCTIONS
+    ═══════════════════════════════
+]]
+
+local function GetCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function GetHumanoid()
+    local char = GetCharacter()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function GetRoot()
+    local char = GetCharacter()
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+local function IsAlive()
+    local hum = GetHumanoid()
+    return hum and hum.Health > 0
+end
+
+local function GetCommunicate()
+    local char = GetCharacter()
+    local remote = char:WaitForChild("Communicate", 10)
+    if not remote then
+        warn("[TSB] Communicate Remote Not Found!")
+        return nil
+    end
+    return remote
+end
+
+local function GetNearestEnemy(maxRange)
+    local root = GetRoot()
+    if not root then return nil, nil end
+
+    local nearest = nil
+    local shortestDist = maxRange or math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+
+        local enemyChar = player.Character
+        if not enemyChar then continue end
+
+        local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+        local enemyHum = enemyChar:FindFirstChildOfClass("Humanoid")
+
+        if not enemyRoot or not enemyHum then continue end
+        if enemyHum.Health <= 0 then continue end
+
+        local dist = (root.Position - enemyRoot.Position).Magnitude
+
+        if dist < shortestDist then
+            shortestDist = dist
+            nearest = enemyRoot
+        end
+    end
+
+    return nearest, shortestDist
+end
+
+--[[
+    ═══════════════════════════════
+         COMMUNICATE REMOTES
+    ═══════════════════════════════
+]]
+
+-- // Left Click
+local function FireLeftClick(targetCFrame)
+    local remote = GetCommunicate()
+    if not remote then return end
+    remote:FireServer({
+        Goal = "LeftClick",
+        MousePos = targetCFrame
+    })
+end
+
+-- // Right Click
+local function FireRightClick(targetCFrame)
+    local remote = GetCommunicate()
+    if not remote then return end
+    remote:FireServer({
+        Goal = "RightClick",
+        MousePos = targetCFrame
+    })
+end
+
+-- // Key Press (Skills)
+local function FireKeyPress(key, targetCFrame)
+    local remote = GetCommunicate()
+    if not remote then return end
+    remote:FireServer({
+        Goal = "KeyPress",
+        MousePos = targetCFrame,
+        Key = key
+    })
+end
+
+-- // Platform
+local function FirePlatform()
+    local remote = GetCommunicate()
+    if not remote then return end
+    remote:FireServer({
+        Goal = "Platform",
+        mobile = true
+    })
+end
+
+-- // Hit
+local function FireHit(targetCFrame)
+    local remote = GetCommunicate()
+    if not remote then return end
+    remote:FireServer({
+        Goal = "Hit",
+        MousePos = targetCFrame
+    })
+end
+
+--[[
+    ═══════════════════════════════
+        REPLICATION REMOTES
+    ═══════════════════════════════
+]]
+
+local ReplicationRemote = ReplicatedStorage:WaitForChild("Replication", 10)
+
+-- // Velocity Forward
+local function FireVelocityForward(distance)
+    if not ReplicationRemote then return end
+    firesignal(ReplicationRemote.OnClientEvent, {
+        Distance = distance or Flags.VelocityDist,
+        Effect = "Velocity Forward"
+    })
+end
+
+-- // Notification
+local function FireNotification(char, message, button)
+    if not ReplicationRemote then return end
+    firesignal(ReplicationRemote.OnClientEvent, {
+        char = char or "Hunter",
+        Message = message or "",
+        Button = button or "Reset",
+        Effect = "Notification"
+    })
+end
+
+-- // Custom Server Teleporting
+local function FireCustomServerTeleporting()
+    if not ReplicationRemote then return end
+    firesignal(ReplicationRemote.OnClientEvent, {
+        Effect = "CustomServerTeleporting"
+    })
+end
+
+-- // Creating Server
+local function FireCreatingServer()
+    if not ReplicationRemote then return end
+    firesignal(ReplicationRemote.OnClientEvent, {
+        Effect = "CreatingServer"
+    })
+end
+
+--[[
+    ═══════════════════════════════
+      UNRELIABLE REMOTE (Movement)
+    ═══════════════════════════════
+]]
+
+local UnreliableRemote = ReplicatedStorage:WaitForChild("UnreliableRemoteEvent", 10)
+local seqCounter = 0
+
+local function GetNextSeq()
+    seqCounter += 1
+    return seqCounter
+end
+
+local function FireCustomMoveStun()
+    if not UnreliableRemote then return end
+
+    local root = GetRoot()
+    local hum = GetHumanoid()
+    if not root or not hum then return end
+
+    local velY = root.AssemblyLinearVelocity.Y
+    local isFalling = velY < -1
+    local isRunning = hum.MoveDirection.Magnitude > 0.1
+
+    UnreliableRemote:FireServer({
+        falling = isFalling,
+        velY = velY,
+        clientT = os.clock(),
+        holdingSpace = false,
+        cframe = root.CFrame,
+        seq = GetNextSeq(),
+        running = isRunning
+    }, "CustomMoveStun")
+end
+
+--[[
+    ═══════════════════════════════
+           COMBAT SYSTEMS
+    ═══════════════════════════════
+]]
+
+-- // Combo Sequence
+local ComboSequence = {
+    {fn = FireLeftClick,  delay = 0.15},
+    {fn = FireLeftClick,  delay = 0.15},
+    {fn = FireLeftClick,  delay = 0.15},
+    {fn = FireRightClick, delay = 0.20},
+    {fn = FireHit,        delay = 0.10},
+}
+
+local function RunCombo(targetCFrame)
+    for _, step in ipairs(ComboSequence) do
+        if not Flags.AutoCombo then break end
+        step.fn(targetCFrame)
+        task.wait(Flags.ComboDelay)
+    end
+end
+
+-- // Skill Keys
+local SkillKeys = {"q", "e", "r", "f"}
+
+--[[
+    ═══════════════════════════════
+              MAIN LOOPS
+    ═══════════════════════════════
+]]
+
+-- // Master Loop
+RunService.Heartbeat:Connect(function()
+    if not IsAlive() then return end
+
+    local target, dist = GetNearestEnemy(Flags.AttackRange)
+
+    -- Auto Combo
+    if Flags.AutoCombo and target and dist <= Flags.AttackRange then
+        task.spawn(function()
+            RunCombo(target.CFrame)
+        end)
+    end
+
+    -- Kill Aura (Rapid Left Clicks)
+    if Flags.KillAura and target and dist <= Flags.AttackRange then
+        FireLeftClick(target.CFrame)
+    end
+
+    -- Auto Velocity
+    if Flags.AutoVelocity and target and dist <= 50 then
+        FireVelocityForward(Flags.VelocityDist)
+    end
+
+    -- CustomMoveStun
+    FireCustomMoveStun()
+end)
+
+-- // Auto Skill Loop
+task.spawn(function()
+    while true do
+        task.wait(Flags.SkillDelay)
+        if not IsAlive() then continue end
+        if not Flags.AutoSkill then continue end
+
+        local target, dist = GetNearestEnemy(40)
+        if not target then continue end
+
+        for _, key in ipairs(SkillKeys) do
+            if not Flags.AutoSkill then break end
+            FireKeyPress(key, target.CFrame)
+            task.wait(0.2)
+        end
+    end
+end)
+
+-- // Speed Loop
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if not IsAlive() then continue end
+        if not Flags.SpeedEnabled then continue end
+
+        local hum = GetHumanoid()
+        if hum then
+            hum.WalkSpeed = Flags.SpeedValue
+        end
+    end
+end)
+
+--[[
+    ═══════════════════════════════
+                  ESP
+    ═══════════════════════════════
+]]
+
+local ESPObjects = {}
+
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "TSB_ESP"
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.TextColor3 = Flags.ESPColor
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 14
+    nameLabel.Text = player.Name
+    nameLabel.Parent = billboard
+
+    local healthLabel = Instance.new("TextLabel")
+    healthLabel.Name = "HealthLabel"
+    healthLabel.BackgroundTransparency = 1
+    healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    healthLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    healthLabel.TextStrokeTransparency = 0
+    healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    healthLabel.Font = Enum.Font.GothamBold
+    healthLabel.TextSize = 12
+    healthLabel.Text = "HP: 100"
+    healthLabel.Parent = billboard
+
+    ESPObjects[player] = billboard
+
+    -- Update loop
+    task.spawn(function()
+        while billboard and billboard.Parent do
+            task.wait(0.1)
+
+            if not Flags.ESPEnabled then
+                billboard.Enabled = false
+                continue
+            end
+
+            local enemyChar = player.Character
+            if not enemyChar then
+                billboard.Enabled = false
+                continue
+            end
+
+            local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+            local enemyHum = enemyChar:FindFirstChildOfClass("Humanoid")
+
+            if not enemyRoot or not enemyHum then
+                billboard.Enabled = false
+                continue
+            end
+
+            billboard.Enabled = true
+            billboard.Adornee = enemyRoot
+
+            nameLabel.TextColor3 = Flags.ESPColor
+            nameLabel.Text = player.Name
+
+            local hpPercent = math.floor((enemyHum.Health / enemyHum.MaxHealth) * 100)
+            healthLabel.Text = "HP: " .. hpPercent .. "%"
+
+            local root = GetRoot()
+            if root then
+                local dist = math.floor((root.Position - enemyRoot.Position).Magnitude)
+                nameLabel.Text = player.Name .. " [" .. dist .. "m]"
+            end
+        end
+    end)
+end
+
+local function RemoveESP(player)
+    if ESPObjects[player] then
+        ESPObjects[player]:Destroy()
+        ESPObjects[player] = nil
+    end
+end
+
+local function RefreshESP()
+    -- Clear old
+    for player, _ in pairs(ESPObjects) do
+        RemoveESP(player)
+    end
+
+    if not Flags.ESPEnabled then return end
+
+    -- Create new
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        CreateESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if Flags.ESPEnabled then
+        CreateESP(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    RemoveESP(player)
+end)
+
+--[[
+    ═══════════════════════════════
+              UI PAGES
+    ═══════════════════════════════
+]]
+
+Window:Category("Combat")
+
+-- // COMBAT PAGE
+local CombatPage = Window:Page({Name = "Combat", Icon = "138827881557940"})
+local CombatSection = CombatPage:Section({Name = "Auto Combat", Side = 1})
+
+CombatSection:Toggle({
+    Name = "Auto Combo",
+    Flag = "AutoCombo",
+    Default = false,
+    Callback = function(Value)
+        Flags.AutoCombo = Value
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Auto Combo: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+}):Keybind({
+    Name = "Auto Combo Key",
+    Flag = "AutoComboKey",
+    Default = Enum.KeyCode.Z,
+    Callback = function()
+        Flags.AutoCombo = not Flags.AutoCombo
+    end
+})
+
+CombatSection:Toggle({
+    Name = "Kill Aura",
+    Flag = "KillAura",
+    Default = false,
+    Callback = function(Value)
+        Flags.KillAura = Value
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Kill Aura: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+}):Keybind({
+    Name = "Kill Aura Key",
+    Flag = "KillAuraKey",
+    Default = Enum.KeyCode.X,
+    Callback = function()
+        Flags.KillAura = not Flags.KillAura
+    end
+})
+
+CombatSection:Toggle({
+    Name = "Auto Skill",
+    Flag = "AutoSkill",
+    Default = false,
+    Callback = function(Value)
+        Flags.AutoSkill = Value
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Auto Skill: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+CombatSection:Slider({
+    Name = "Attack Range",
+    Flag = "AttackRange",
+    Min = 5,
+    Max = 60,
+    Default = 20,
+    Suffix = " studs",
+    Callback = function(Value)
+        Flags.AttackRange = Value
+    end
+})
+
+CombatSection:Slider({
+    Name = "Combo Delay",
+    Flag = "ComboDelay",
+    Min = 1,
+    Max = 100,
+    Default = 15,
+    Suffix = " ms",
+    Callback = function(Value)
+        Flags.ComboDelay = Value / 100
+    end
+})
+
+-- // COMBAT SECTION 2
+local CombatSection2 = CombatPage:Section({Name = "Velocity", Side = 2})
+
+CombatSection2:Toggle({
+    Name = "Auto Velocity Forward",
+    Flag = "AutoVelocity",
+    Default = false,
+    Callback = function(Value)
+        Flags.AutoVelocity = Value
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Auto Velocity: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+CombatSection2:Slider({
+    Name = "Velocity Distance",
+    Flag = "VelocityDist",
+    Min = 5,
+    Max = 100,
+    Default = 30,
+    Suffix = " studs",
+    Callback = function(Value)
+        Flags.VelocityDist = Value
+    end
+})
+
+CombatSection2:Button({
+    Name = "Fire Velocity Once",
+    Callback = function()
+        FireVelocityForward(Flags.VelocityDist)
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Velocity Forward Fired!",
+            Duration = 2,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+--[[
+    ═══════════════════════════════
+              VISUAL PAGE
+    ═══════════════════════════════
+]]
+
+Window:Category("Visuals")
+
+local VisualPage = Window:Page({Name = "Visuals", Icon = "138827881557940"})
+local ESPSection = VisualPage:Section({Name = "ESP", Side = 1})
+
+ESPSection:Toggle({
+    Name = "Player ESP",
+    Flag = "ESPEnabled",
+    Default = false,
+    Callback = function(Value)
+        Flags.ESPEnabled = Value
+        RefreshESP()
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "ESP: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+ESPSection:Label("ESP Color"):Colorpicker({
+    Name = "Color",
+    Flag = "ESPColor",
+    Default = Color3.fromRGB(255, 80, 80),
+    Callback = function(Value)
+        Flags.ESPColor = Value
+    end
+})
+
+--[[
+    ═══════════════════════════════
+              PLAYER PAGE
+    ═══════════════════════════════
+]]
+
+Window:Category("Player")
+
+local PlayerPage = Window:Page({Name = "Player", Icon = "138827881557940"})
+local PlayerSection = PlayerPage:Section({Name = "Movement", Side = 1})
+
+PlayerSection:Toggle({
+    Name = "Speed Hack",
+    Flag = "SpeedEnabled",
+    Default = false,
+    Callback = function(Value)
+        Flags.SpeedEnabled = Value
+        if not Value then
+            local hum = GetHumanoid()
+            if hum then hum.WalkSpeed = 16 end
+        end
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Speed Hack: " .. (Value and "ON" or "OFF"),
+            Duration = 3,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+PlayerSection:Slider({
+    Name = "Walk Speed",
+    Flag = "SpeedSlider",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Suffix = " studs",
+    Callback = function(Value)
+        Flags.SpeedValue = Value
+    end
+})
+
+-- // Platform Section
+local PlatformSection = PlayerPage:Section({Name = "Platform", Side = 2})
+
+PlatformSection:Button({
+    Name = "Fire Platform (Mobile Bypass)",
+    Callback = function()
+        FirePlatform()
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Platform Fired!",
+            Duration = 2,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+--[[
+    ═══════════════════════════════
+            MISC PAGE
+    ═══════════════════════════════
+]]
+
+Window:Category("Misc")
+
+local MiscPage = Window:Page({Name = "Misc", Icon = "138827881557940"})
+local MiscSection = MiscPage:Section({Name = "Server", Side = 1})
+
+MiscSection:Button({
+    Name = "Fire Teleporting Effect",
+    Callback = function()
+        FireCustomServerTeleporting()
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Teleporting Effect Fired!",
+            Duration = 2,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+MiscSection:Button({
+    Name = "Fire Creating Server",
+    Callback = function()
+        FireCreatingServer()
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Creating Server Fired!",
+            Duration = 2,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+local MiscSection2 = MiscPage:Section({Name = "Notifications", Side = 2})
+
+MiscSection2:Button({
+    Name = "Test Notification",
+    Callback = function()
+        Library:Notification({
+            Title = "TSB Script",
+            Description = "Script is working perfectly!",
+            Duration = 5,
+            Icon = "73789337996373"
+        })
+    end
+})
+
+--[[
+    ═══════════════════════════════
+            SETTINGS PAGE
+    ═══════════════════════════════
+]]
+
+Window:Category("Settings")
+local SettingsPage = Library:CreateSettingsPage(Window, KeybindList)
+
+--[[
+    ═══════════════════════════════
+               INIT
+    ═══════════════════════════════
+]]
+
+Window:Init()
+
+-- // Fire Platform on load (mobile bypass)
+task.wait(1)
+FirePlatform()
+
+print("[TSB Script] Loaded Successfully ✅")
+
+Library:Notification({
+    Title = "TSB Script",
+    Description = "Script Loaded Successfully!",
+    Duration = 5,
+    Icon = "73789337996373"
+})
