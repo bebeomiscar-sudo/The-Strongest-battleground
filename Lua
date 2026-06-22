@@ -1,816 +1,724 @@
--- THE STRONGEST BATTLEGROUNDS
--- Full Script With NeverLose UI
--- Built From Scratch By Pro Scripter
--- All Remotes Combined & Organized
+-- =============================================
+--   ARSENAL SCRIPT — OBSIDIAN UI EDITION
+--   Features: Aimbot, Silent Aim, Triggerbot,
+--             Wallbang, ESP, Movement, Name Spoofer,
+--             AC Bypass, Auto‑Rejoin
+--   UI: Obsidian (Linoria fork)
+-- =============================================
 
---[[
-    ═══════════════════════════════
-              SERVICES
-    ═══════════════════════════════
-]]
+if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- =============================================
+--   OBSIDIAN UI LOADER
+-- =============================================
+local repo = "https://raw.githubusercontent.com/Ali-lov3/Obsidian-UiLibs/refs/heads/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ali-lov3/Obsidian-UiLibs/refs/heads/main/addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ali-lov3/Obsidian-UiLibs/refs/heads/main/addons/SaveManager.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+-- Force checkboxes instead of toggles if desired
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+
+-- =============================================
+--   SERVICES
+-- =============================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
---[[
-    ═══════════════════════════════
-             UI LIBRARY
-    ═══════════════════════════════
-]]
-
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/ImInsane-1337/neverlose-ui/refs/heads/main/source/library.lua"
-))()
-
-local CheatName = "TSB Script"
-
-Library.Folders = {
-    Directory = CheatName,
-    Configs = CheatName .. "/Configs",
-    Assets = CheatName .. "/Assets",
+-- =============================================
+--   CONFIG (auto‑saved by SaveManager)
+-- =============================================
+local Config = {
+    Aimbot = {
+        Enabled = false,
+        TeamCheck = true,
+        VisibleCheck = true,
+        FOV = 150,
+        Part = "Head",
+        Smoothness = 0.5,
+        MaxDistance = 1000,
+    },
+    SilentAim = {
+        Enabled = false,
+        HitChance = 100,
+        Part = "Head",
+        FOV = 150,
+    },
+    Triggerbot = {
+        Enabled = false,   -- always active when on, no keybind needed
+        Range = 1000,
+    },
+    Wallbang = {
+        Enabled = false,
+    },
+    ESP = {
+        Enabled = false,
+        Box = true,
+        Name = true,
+        Distance = true,
+        Health = true,
+        TeamCheck = true,
+        MaxDistance = 1000,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    Movement = {
+        Walkspeed = { Enabled = false, Speed = 16 },
+        Fly = { Enabled = false, Speed = 50 },
+        Noclip = { Enabled = false },
+    },
+    Misc = {
+        NameSpoof = { Enabled = false, Name = "Arsenal User" },
+    },
 }
 
-local Accent = Color3.fromRGB(255, 80, 80)
-local Gradient = Color3.fromRGB(120, 20, 20)
-
-Library.Theme.Accent = Accent
-Library.Theme.AccentGradient = Gradient
-Library:ChangeTheme("Accent", Accent)
-Library:ChangeTheme("AccentGradient", Gradient)
-
-local Window = Library:Window({
-    Name = "TSB Script",
-    SubName = "Strongest Battlegrounds",
-    Logo = "120959262762131"
-})
-
-local KeybindList = Library:KeybindList("Keybinds")
-
-Library:Watermark({
-    "TSB Script",
-    "Pro Scripter",
-    120959262762131
-})
-
--- // FPS Watermark Update
-task.spawn(function()
-    while true do
-        local FPS = math.floor(1 / RunService.RenderStepped:Wait())
-        Library:Watermark({
-            "TSB Script",
-            "Pro Scripter",
-            120959262762131,
-            "FPS: " .. FPS
-        })
-        task.wait(0.5)
-    end
-end)
-
---[[
-    ═══════════════════════════════
-           FLAGS / SETTINGS
-    ═══════════════════════════════
-]]
-
-local Flags = {
-    AutoCombo      = false,
-    AutoSkill      = false,
-    AutoBlock      = false,
-    KillAura       = false,
-    AutoVelocity   = false,
-    VelocityDist   = 30,
-    AttackRange    = 20,
-    ComboDelay     = 0.15,
-    SkillDelay     = 0.2,
-    ESPEnabled     = false,
-    ESPColor       = Color3.fromRGB(255, 80, 80),
-    SpeedEnabled   = false,
-    SpeedValue     = 16,
-}
-
---[[
-    ═══════════════════════════════
-           UTILITY FUNCTIONS
-    ═══════════════════════════════
-]]
-
-local function GetCharacter()
-    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-end
-
-local function GetHumanoid()
-    local char = GetCharacter()
-    return char:FindFirstChildOfClass("Humanoid")
-end
-
-local function GetRoot()
-    local char = GetCharacter()
-    return char:FindFirstChild("HumanoidRootPart")
-end
-
-local function IsAlive()
-    local hum = GetHumanoid()
-    return hum and hum.Health > 0
-end
-
-local function GetCommunicate()
-    local char = GetCharacter()
-    local remote = char:WaitForChild("Communicate", 10)
-    if not remote then
-        warn("[TSB] Communicate Remote Not Found!")
-        return nil
-    end
-    return remote
-end
-
-local function GetNearestEnemy(maxRange)
-    local root = GetRoot()
-    if not root then return nil, nil end
-
-    local nearest = nil
-    local shortestDist = maxRange or math.huge
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-
-        local enemyChar = player.Character
-        if not enemyChar then continue end
-
-        local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
-        local enemyHum = enemyChar:FindFirstChildOfClass("Humanoid")
-
-        if not enemyRoot or not enemyHum then continue end
-        if enemyHum.Health <= 0 then continue end
-
-        local dist = (root.Position - enemyRoot.Position).Magnitude
-
-        if dist < shortestDist then
-            shortestDist = dist
-            nearest = enemyRoot
-        end
-    end
-
-    return nearest, shortestDist
-end
-
---[[
-    ═══════════════════════════════
-         COMMUNICATE REMOTES
-    ═══════════════════════════════
-]]
-
--- // Left Click
-local function FireLeftClick(targetCFrame)
-    local remote = GetCommunicate()
-    if not remote then return end
-    remote:FireServer({
-        Goal = "LeftClick",
-        MousePos = targetCFrame
-    })
-end
-
--- // Right Click
-local function FireRightClick(targetCFrame)
-    local remote = GetCommunicate()
-    if not remote then return end
-    remote:FireServer({
-        Goal = "RightClick",
-        MousePos = targetCFrame
-    })
-end
-
--- // Key Press (Skills)
-local function FireKeyPress(key, targetCFrame)
-    local remote = GetCommunicate()
-    if not remote then return end
-    remote:FireServer({
-        Goal = "KeyPress",
-        MousePos = targetCFrame,
-        Key = key
-    })
-end
-
--- // Platform
-local function FirePlatform()
-    local remote = GetCommunicate()
-    if not remote then return end
-    remote:FireServer({
-        Goal = "Platform",
-        mobile = true
-    })
-end
-
--- // Hit
-local function FireHit(targetCFrame)
-    local remote = GetCommunicate()
-    if not remote then return end
-    remote:FireServer({
-        Goal = "Hit",
-        MousePos = targetCFrame
-    })
-end
-
---[[
-    ═══════════════════════════════
-        REPLICATION REMOTES
-    ═══════════════════════════════
-]]
-
-local ReplicationRemote = ReplicatedStorage:WaitForChild("Replication", 10)
-
--- // Velocity Forward
-local function FireVelocityForward(distance)
-    if not ReplicationRemote then return end
-    firesignal(ReplicationRemote.OnClientEvent, {
-        Distance = distance or Flags.VelocityDist,
-        Effect = "Velocity Forward"
-    })
-end
-
--- // Notification
-local function FireNotification(char, message, button)
-    if not ReplicationRemote then return end
-    firesignal(ReplicationRemote.OnClientEvent, {
-        char = char or "Hunter",
-        Message = message or "",
-        Button = button or "Reset",
-        Effect = "Notification"
-    })
-end
-
--- // Custom Server Teleporting
-local function FireCustomServerTeleporting()
-    if not ReplicationRemote then return end
-    firesignal(ReplicationRemote.OnClientEvent, {
-        Effect = "CustomServerTeleporting"
-    })
-end
-
--- // Creating Server
-local function FireCreatingServer()
-    if not ReplicationRemote then return end
-    firesignal(ReplicationRemote.OnClientEvent, {
-        Effect = "CreatingServer"
-    })
-end
-
---[[
-    ═══════════════════════════════
-      UNRELIABLE REMOTE (Movement)
-    ═══════════════════════════════
-]]
-
-local UnreliableRemote = ReplicatedStorage:WaitForChild("UnreliableRemoteEvent", 10)
-local seqCounter = 0
-
-local function GetNextSeq()
-    seqCounter += 1
-    return seqCounter
-end
-
-local function FireCustomMoveStun()
-    if not UnreliableRemote then return end
-
-    local root = GetRoot()
-    local hum = GetHumanoid()
-    if not root or not hum then return end
-
-    local velY = root.AssemblyLinearVelocity.Y
-    local isFalling = velY < -1
-    local isRunning = hum.MoveDirection.Magnitude > 0.1
-
-    UnreliableRemote:FireServer({
-        falling = isFalling,
-        velY = velY,
-        clientT = os.clock(),
-        holdingSpace = false,
-        cframe = root.CFrame,
-        seq = GetNextSeq(),
-        running = isRunning
-    }, "CustomMoveStun")
-end
-
---[[
-    ═══════════════════════════════
-           COMBAT SYSTEMS
-    ═══════════════════════════════
-]]
-
--- // Combo Sequence
-local ComboSequence = {
-    {fn = FireLeftClick,  delay = 0.15},
-    {fn = FireLeftClick,  delay = 0.15},
-    {fn = FireLeftClick,  delay = 0.15},
-    {fn = FireRightClick, delay = 0.20},
-    {fn = FireHit,        delay = 0.10},
-}
-
-local function RunCombo(targetCFrame)
-    for _, step in ipairs(ComboSequence) do
-        if not Flags.AutoCombo then break end
-        step.fn(targetCFrame)
-        task.wait(Flags.ComboDelay)
-    end
-end
-
--- // Skill Keys
-local SkillKeys = {"q", "e", "r", "f"}
-
---[[
-    ═══════════════════════════════
-              MAIN LOOPS
-    ═══════════════════════════════
-]]
-
--- // Master Loop
-RunService.Heartbeat:Connect(function()
-    if not IsAlive() then return end
-
-    local target, dist = GetNearestEnemy(Flags.AttackRange)
-
-    -- Auto Combo
-    if Flags.AutoCombo and target and dist <= Flags.AttackRange then
-        task.spawn(function()
-            RunCombo(target.CFrame)
-        end)
-    end
-
-    -- Kill Aura (Rapid Left Clicks)
-    if Flags.KillAura and target and dist <= Flags.AttackRange then
-        FireLeftClick(target.CFrame)
-    end
-
-    -- Auto Velocity
-    if Flags.AutoVelocity and target and dist <= 50 then
-        FireVelocityForward(Flags.VelocityDist)
-    end
-
-    -- CustomMoveStun
-    FireCustomMoveStun()
-end)
-
--- // Auto Skill Loop
-task.spawn(function()
-    while true do
-        task.wait(Flags.SkillDelay)
-        if not IsAlive() then continue end
-        if not Flags.AutoSkill then continue end
-
-        local target, dist = GetNearestEnemy(40)
-        if not target then continue end
-
-        for _, key in ipairs(SkillKeys) do
-            if not Flags.AutoSkill then break end
-            FireKeyPress(key, target.CFrame)
-            task.wait(0.2)
-        end
-    end
-end)
-
--- // Speed Loop
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if not IsAlive() then continue end
-        if not Flags.SpeedEnabled then continue end
-
-        local hum = GetHumanoid()
-        if hum then
-            hum.WalkSpeed = Flags.SpeedValue
-        end
-    end
-end)
-
---[[
-    ═══════════════════════════════
-                  ESP
-    ═══════════════════════════════
-]]
+-- =============================================
+--   DRAWING OBJECTS
+-- =============================================
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(0, 200, 255)
+FOVCircle.Filled = false
+FOVCircle.NumSides = 64
+FOVCircle.Radius = Config.Aimbot.FOV
 
 local ESPObjects = {}
 
-local function CreateESP(player)
-    if player == LocalPlayer then return end
+-- =============================================
+--   ANTI‑CHEAT BYPASS (safe hooks)
+-- =============================================
+task.spawn(function()
+    task.wait(1.5)
+    local success = pcall(function()
+        -- LocalPlayer.Kick bypass
+        local oldKick = LocalPlayer.Kick
+        LocalPlayer.Kick = newcclosure(function(self, ...)
+            if self == LocalPlayer then return nil end
+            return oldKick(self, ...)
+        end)
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "TSB_ESP"
-    billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 100, 0, 40)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Name = "NameLabel"
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    nameLabel.TextColor3 = Flags.ESPColor
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 14
-    nameLabel.Text = player.Name
-    nameLabel.Parent = billboard
-
-    local healthLabel = Instance.new("TextLabel")
-    healthLabel.Name = "HealthLabel"
-    healthLabel.BackgroundTransparency = 1
-    healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    healthLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    healthLabel.TextStrokeTransparency = 0
-    healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    healthLabel.Font = Enum.Font.GothamBold
-    healthLabel.TextSize = 12
-    healthLabel.Text = "HP: 100"
-    healthLabel.Parent = billboard
-
-    ESPObjects[player] = billboard
-
-    -- Update loop
-    task.spawn(function()
-        while billboard and billboard.Parent do
-            task.wait(0.1)
-
-            if not Flags.ESPEnabled then
-                billboard.Enabled = false
-                continue
-            end
-
-            local enemyChar = player.Character
-            if not enemyChar then
-                billboard.Enabled = false
-                continue
-            end
-
-            local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
-            local enemyHum = enemyChar:FindFirstChildOfClass("Humanoid")
-
-            if not enemyRoot or not enemyHum then
-                billboard.Enabled = false
-                continue
-            end
-
-            billboard.Enabled = true
-            billboard.Adornee = enemyRoot
-
-            nameLabel.TextColor3 = Flags.ESPColor
-            nameLabel.Text = player.Name
-
-            local hpPercent = math.floor((enemyHum.Health / enemyHum.MaxHealth) * 100)
-            healthLabel.Text = "HP: " .. hpPercent .. "%"
-
-            local root = GetRoot()
-            if root then
-                local dist = math.floor((root.Position - enemyRoot.Position).Magnitude)
-                nameLabel.Text = player.Name .. " [" .. dist .. "m]"
+        -- Silence LogService
+        local LogService = game:GetService("LogService")
+        for _, conn in pairs(getconnections(LogService.MessageOut)) do
+            if conn and conn.Function then
+                pcall(hookfunction, conn.Function, newcclosure(function() end))
             end
         end
+
+        -- Block Analytics remotes
+        local analytics = ReplicatedStorage:FindFirstChild("Remotes")
+        if analytics then
+            local remote = analytics:FindFirstChild("AnalyticsPipeline")
+            if remote then
+                local ev = remote:FindFirstChild("RemoteEvent")
+                if ev then pcall(function() ev.OnClientEvent:Connect(function() end) end) end
+            end
+        end
+        print("[AC] Bypass active")
+    end)
+    if not success then warn("[AC] Bypass failed (executor may lack hooks)") end
+end)
+
+-- =============================================
+--   AUTO‑REJOIN
+-- =============================================
+local function rejoin()
+    task.spawn(function()
+        task.wait(0.5)
+        pcall(function()
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
     end)
 end
-
-local function RemoveESP(player)
-    if ESPObjects[player] then
-        ESPObjects[player]:Destroy()
-        ESPObjects[player] = nil
-    end
-end
-
-local function RefreshESP()
-    -- Clear old
-    for player, _ in pairs(ESPObjects) do
-        RemoveESP(player)
-    end
-
-    if not Flags.ESPEnabled then return end
-
-    -- Create new
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        CreateESP(player)
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    if Flags.ESPEnabled then
-        CreateESP(player)
-    end
+LocalPlayer.AncestryChanged:Connect(function(_, parent)
+    if not parent then rejoin() end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    RemoveESP(player)
+-- =============================================
+--   AIMBOT LOGIC
+-- =============================================
+local Target = nil
+local TargetCache = nil
+local CacheTime = 0
+local CACHE_TTL = 0.05
+
+local function GetMouseLocation() return UserInputService:GetMouseLocation() end
+
+local function IsVisible(targetPart)
+    if not targetPart then return false end
+    local origin = Camera.CFrame.Position
+    local direction = (targetPart.Position - origin).Unit
+    local distance = (targetPart.Position - origin).Magnitude
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    local result = Workspace:Raycast(origin, direction * distance, params)
+    return result == nil or result.Instance:IsDescendantOf(targetPart.Parent)
+end
+
+local function IsTeammate(player)
+    if not player then return false end
+    local myTeam = LocalPlayer.Team
+    return myTeam and player.Team and myTeam == player.Team
+end
+
+local function IsValidTarget(player)
+    if not player or player == LocalPlayer then return false end
+    if Config.Aimbot.TeamCheck and IsTeammate(player) then return false end
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+    if (Camera.CFrame.Position - root.Position).Magnitude > Config.Aimbot.MaxDistance then return false end
+    return true
+end
+
+local function GetTargetPart(char)
+    local partName = Config.Aimbot.Part
+    if partName == "Head" then return char:FindFirstChild("Head")
+    elseif partName == "HumanoidRootPart" then return char:FindFirstChild("HumanoidRootPart")
+    elseif partName == "Torso" then return char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+    else return char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart") end
+end
+
+local function GetClosestTarget()
+    local closest, bestDist = nil, Config.Aimbot.FOV
+    local mousePos = GetMouseLocation()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if not IsValidTarget(p) then continue end
+        local char = p.Character
+        local part = GetTargetPart(char)
+        if not part then continue end
+        if Config.Aimbot.VisibleCheck and not IsVisible(part) then continue end
+        local sp, on = Camera:WorldToViewportPoint(part.Position)
+        if not on then continue end
+        local d = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+        if d < bestDist then bestDist = d; closest = p end
+    end
+    return closest
+end
+
+-- Aimbot loop
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Visible = Config.Aimbot.Enabled
+    FOVCircle.Position = GetMouseLocation()
+    FOVCircle.Radius = Config.Aimbot.FOV
+
+    if not Config.Aimbot.Enabled then return end
+
+    local now = tick()
+    if now - CacheTime > CACHE_TTL then
+        TargetCache = GetClosestTarget()
+        CacheTime = now
+    end
+    Target = TargetCache
+
+    if not Target then return end
+    local char = Target.Character
+    local part = GetTargetPart(char)
+    if not part then return end
+
+    local origin = Camera.CFrame.Position
+    local targetLook = CFrame.lookAt(origin, part.Position)
+    local currentLook = Camera.CFrame
+    local smoothLook = currentLook:Lerp(targetLook, Config.Aimbot.Smoothness)
+    Camera.CFrame = smoothLook
 end)
 
---[[
-    ═══════════════════════════════
-              UI PAGES
-    ═══════════════════════════════
-]]
+-- =============================================
+--   SILENT AIM (__namecall hook)
+-- =============================================
+local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
 
-Window:Category("Combat")
-
--- // COMBAT PAGE
-local CombatPage = Window:Page({Name = "Combat", Icon = "138827881557940"})
-local CombatSection = CombatPage:Section({Name = "Auto Combat", Side = 1})
-
-CombatSection:Toggle({
-    Name = "Auto Combo",
-    Flag = "AutoCombo",
-    Default = false,
-    Callback = function(Value)
-        Flags.AutoCombo = Value
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Auto Combo: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
-    end
-}):Keybind({
-    Name = "Auto Combo Key",
-    Flag = "AutoComboKey",
-    Default = Enum.KeyCode.Z,
-    Callback = function()
-        Flags.AutoCombo = not Flags.AutoCombo
-    end
-})
-
-CombatSection:Toggle({
-    Name = "Kill Aura",
-    Flag = "KillAura",
-    Default = false,
-    Callback = function(Value)
-        Flags.KillAura = Value
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Kill Aura: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
-    end
-}):Keybind({
-    Name = "Kill Aura Key",
-    Flag = "KillAuraKey",
-    Default = Enum.KeyCode.X,
-    Callback = function()
-        Flags.KillAura = not Flags.KillAura
-    end
-})
-
-CombatSection:Toggle({
-    Name = "Auto Skill",
-    Flag = "AutoSkill",
-    Default = false,
-    Callback = function(Value)
-        Flags.AutoSkill = Value
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Auto Skill: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
-    end
-})
-
-CombatSection:Slider({
-    Name = "Attack Range",
-    Flag = "AttackRange",
-    Min = 5,
-    Max = 60,
-    Default = 20,
-    Suffix = " studs",
-    Callback = function(Value)
-        Flags.AttackRange = Value
-    end
-})
-
-CombatSection:Slider({
-    Name = "Combo Delay",
-    Flag = "ComboDelay",
-    Min = 1,
-    Max = 100,
-    Default = 15,
-    Suffix = " ms",
-    Callback = function(Value)
-        Flags.ComboDelay = Value / 100
-    end
-})
-
--- // COMBAT SECTION 2
-local CombatSection2 = CombatPage:Section({Name = "Velocity", Side = 2})
-
-CombatSection2:Toggle({
-    Name = "Auto Velocity Forward",
-    Flag = "AutoVelocity",
-    Default = false,
-    Callback = function(Value)
-        Flags.AutoVelocity = Value
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Auto Velocity: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
-    end
-})
-
-CombatSection2:Slider({
-    Name = "Velocity Distance",
-    Flag = "VelocityDist",
-    Min = 5,
-    Max = 100,
-    Default = 30,
-    Suffix = " studs",
-    Callback = function(Value)
-        Flags.VelocityDist = Value
-    end
-})
-
-CombatSection2:Button({
-    Name = "Fire Velocity Once",
-    Callback = function()
-        FireVelocityForward(Flags.VelocityDist)
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Velocity Forward Fired!",
-            Duration = 2,
-            Icon = "73789337996373"
-        })
-    end
-})
-
---[[
-    ═══════════════════════════════
-              VISUAL PAGE
-    ═══════════════════════════════
-]]
-
-Window:Category("Visuals")
-
-local VisualPage = Window:Page({Name = "Visuals", Icon = "138827881557940"})
-local ESPSection = VisualPage:Section({Name = "ESP", Side = 1})
-
-ESPSection:Toggle({
-    Name = "Player ESP",
-    Flag = "ESPEnabled",
-    Default = false,
-    Callback = function(Value)
-        Flags.ESPEnabled = Value
-        RefreshESP()
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "ESP: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
-    end
-})
-
-ESPSection:Label("ESP Color"):Colorpicker({
-    Name = "Color",
-    Flag = "ESPColor",
-    Default = Color3.fromRGB(255, 80, 80),
-    Callback = function(Value)
-        Flags.ESPColor = Value
-    end
-})
-
---[[
-    ═══════════════════════════════
-              PLAYER PAGE
-    ═══════════════════════════════
-]]
-
-Window:Category("Player")
-
-local PlayerPage = Window:Page({Name = "Player", Icon = "138827881557940"})
-local PlayerSection = PlayerPage:Section({Name = "Movement", Side = 1})
-
-PlayerSection:Toggle({
-    Name = "Speed Hack",
-    Flag = "SpeedEnabled",
-    Default = false,
-    Callback = function(Value)
-        Flags.SpeedEnabled = Value
-        if not Value then
-            local hum = GetHumanoid()
-            if hum then hum.WalkSpeed = 16 end
+    if method == "FireServer" and Config.SilentAim.Enabled then
+        local remoteName = self.Name
+        if remoteName:find("Hitscan") or remoteName:find("Projectile") or remoteName == "UseItem" then
+            local target = GetClosestTarget()
+            if target and target.Character then
+                local part = target.Character:FindFirstChild(Config.SilentAim.Part) or target.Character:FindFirstChild("Head")
+                if part and type(args[1]) == "table" then
+                    args[1].Target = part
+                    args[1].Position = part.Position
+                    if args[1].Origin then
+                        args[1].Direction = (part.Position - args[1].Origin).Unit
+                    end
+                end
+            end
         end
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Speed Hack: " .. (Value and "ON" or "OFF"),
-            Duration = 3,
-            Icon = "73789337996373"
-        })
     end
+    return oldNamecall(self, unpack(args))
+end))
+
+-- =============================================
+--   WALLBANG (hook Raycast)
+-- =============================================
+local oldRaycast = Workspace.Raycast
+Workspace.Raycast = newcclosure(function(self, origin, direction, ...)
+    if Config.Wallbang.Enabled then
+        local params = select(3, ...)
+        if params and params.FilterDescendantsInstances then
+            params.FilterDescendantsInstances = {LocalPlayer.Character}
+        end
+    end
+    return oldRaycast(self, origin, direction, ...)
+end)
+
+-- =============================================
+--   TRIGGERBOT (mobile‑friendly, no keybind)
+-- =============================================
+RunService.RenderStepped:Connect(function()
+    if not Config.Triggerbot.Enabled then return end
+    if not LocalPlayer.Character then return end
+    local mousePos = GetMouseLocation()
+    local origin = Camera.CFrame.Position
+    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {LocalPlayer.Character}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local result = Workspace:Raycast(origin, ray.Direction * Config.Triggerbot.Range, params)
+    if result and result.Instance then
+        local char = result.Instance:FindFirstAncestorOfClass("Model")
+        if char then
+            local player = Players:GetPlayerFromCharacter(char)
+            if player and player ~= LocalPlayer and not IsTeammate(player) then
+                local tool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
+                if tool then tool:Activate() end
+            end
+        end
+    end
+end)
+
+-- =============================================
+--   ESP ENGINE
+-- =============================================
+local function CreateESPObject(player)
+    local obj = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Distance = Drawing.new("Text"),
+        Health = Drawing.new("Square"),
+        HealthFill = Drawing.new("Square"),
+    }
+    obj.Box.Visible = false; obj.Box.Thickness = 1; obj.Box.Color = Config.ESP.Color; obj.Box.Filled = false
+    obj.Name.Visible = false; obj.Name.Size = 12; obj.Name.Font = 2; obj.Name.Center = true; obj.Name.Outline = true
+    obj.Distance.Visible = false; obj.Distance.Size = 10; obj.Distance.Font = 2; obj.Distance.Center = true; obj.Distance.Outline = true
+    obj.Health.Visible = false; obj.Health.Filled = true; obj.Health.Color = Color3.fromRGB(30,30,30)
+    obj.HealthFill.Visible = false; obj.HealthFill.Filled = true
+    ESPObjects[player] = obj
+    return obj
+end
+
+local function UpdateESP()
+    if not Config.ESP.Enabled then
+        for _, obj in pairs(ESPObjects) do
+            obj.Box.Visible = false; obj.Name.Visible = false; obj.Distance.Visible = false
+            obj.Health.Visible = false; obj.HealthFill.Visible = false
+        end
+        return
+    end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        if Config.ESP.TeamCheck and IsTeammate(p) then continue end
+        local char = p.Character
+        if not char then continue end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then continue end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then continue end
+        if (Camera.CFrame.Position - root.Position).Magnitude > Config.ESP.MaxDistance then continue end
+        local sp, on = Camera:WorldToViewportPoint(root.Position)
+        if not on then continue end
+
+        local obj = ESPObjects[p] or CreateESPObject(p)
+        local head = char:FindFirstChild("Head")
+        local headPos = head and head.Position + Vector3.new(0,0.5,0) or root.Position + Vector3.new(0,3,0)
+        local footPos = root.Position - Vector3.new(0,3,0)
+        local headSP = Camera:WorldToViewportPoint(headPos)
+        local footSP = Camera:WorldToViewportPoint(footPos)
+        local height = math.abs(headSP.Y - footSP.Y)
+        local width = height * 0.5
+        local x = sp.X - width/2; local y = headSP.Y
+
+        if Config.ESP.Box then
+            obj.Box.Visible = true; obj.Box.Position = Vector2.new(x,y); obj.Box.Size = Vector2.new(width,height); obj.Box.Color = Config.ESP.Color
+        else obj.Box.Visible = false end
+
+        if Config.ESP.Name then
+            obj.Name.Visible = true; obj.Name.Text = p.Name; obj.Name.Position = Vector2.new(sp.X, y-14); obj.Name.Color = Config.ESP.Color
+        else obj.Name.Visible = false end
+
+        if Config.ESP.Distance then
+            local dist = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
+            obj.Distance.Visible = true; obj.Distance.Text = dist.." studs"; obj.Distance.Position = Vector2.new(sp.X, y+height+2); obj.Distance.Color = Config.ESP.Color
+        else obj.Distance.Visible = false end
+
+        if Config.ESP.Health then
+            local hp = hum.Health / hum.MaxHealth
+            obj.Health.Visible = true; obj.Health.Position = Vector2.new(x-6,y); obj.Health.Size = Vector2.new(3,height)
+            obj.HealthFill.Visible = true; obj.HealthFill.Position = Vector2.new(x-6, y+height*(1-hp)); obj.HealthFill.Size = Vector2.new(3, height*hp)
+            obj.HealthFill.Color = Color3.fromHSV(hp*0.35,1,1)
+        else obj.Health.Visible = false; obj.HealthFill.Visible = false end
+    end
+end
+RunService.RenderStepped:Connect(UpdateESP)
+
+-- =============================================
+--   MOVEMENT LOOP (task.spawn for async)
+-- =============================================
+task.spawn(function()
+    while task.wait() do
+        local char = LocalPlayer.Character
+        if not char then continue end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hum or not hrp then continue end
+
+        if Config.Movement.Walkspeed.Enabled then
+            hum.WalkSpeed = Config.Movement.Walkspeed.Speed
+        else
+            hum.WalkSpeed = 16
+        end
+
+        if Config.Movement.Noclip.Enabled then
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+        end
+
+        if Config.Movement.Fly.Enabled then
+            local move = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+            if move.Magnitude > 0 then
+                hrp.Velocity = move.Unit * Config.Movement.Fly.Speed
+            else
+                hrp.Velocity = Vector3.zero
+            end
+            hum.PlatformStand = true
+        else
+            hum.PlatformStand = false
+        end
+    end
+end)
+
+-- =============================================
+--   NAME SPOOFER
+-- =============================================
+if Config.Misc.NameSpoof.Enabled then
+    LocalPlayer.DisplayName = Config.Misc.NameSpoof.Name
+    LocalPlayer.Name = Config.Misc.NameSpoof.Name
+end
+
+-- =============================================
+--   OBSIDIAN UI
+-- =============================================
+local Window = Library:CreateWindow({
+    Title = "Arsenal Hub",
+    Footer = "version: 1.0",
+    Icon = 95816097006870,
+    NotifySide = "Right",
+    ShowCustomCursor = true,
 })
 
-PlayerSection:Slider({
-    Name = "Walk Speed",
-    Flag = "SpeedSlider",
-    Min = 16,
+local Tabs = {
+    Combat = Window:AddTab("Combat", "sword"),
+    Visuals = Window:AddTab("Visuals", "eye"),
+    Misc = Window:AddTab("Misc", "settings"),
+    ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+}
+
+-- ── COMBAT TAB ────────────────────────────────
+local CombatLeft = Tabs.Combat:AddLeftGroupbox("Aimbot", "crosshair")
+CombatLeft:AddToggle("AimbotEnabled", {
+    Text = "Enable Aimbot",
+    Default = false,
+    Callback = function(v) Config.Aimbot.Enabled = v end,
+})
+CombatLeft:AddToggle("TeamCheck", {
+    Text = "Team Check",
+    Default = true,
+    Callback = function(v) Config.Aimbot.TeamCheck = v end,
+})
+CombatLeft:AddToggle("VisibleCheck", {
+    Text = "Visible Only",
+    Default = true,
+    Callback = function(v) Config.Aimbot.VisibleCheck = v end,
+})
+CombatLeft:AddSlider("AimbotFOV", {
+    Text = "FOV Size",
+    Default = 150,
+    Min = 10,
     Max = 500,
-    Default = 16,
+    Rounding = 0,
+    Suffix = " px",
+    Callback = function(v) Config.Aimbot.FOV = v; FOVCircle.Radius = v end,
+})
+CombatLeft:AddSlider("AimbotSmoothness", {
+    Text = "Smoothness",
+    Default = 0.5,
+    Min = 0.01,
+    Max = 1.0,
+    Rounding = 2,
+    Callback = function(v) Config.Aimbot.Smoothness = v end,
+})
+CombatLeft:AddSlider("MaxDistance", {
+    Text = "Max Distance",
+    Default = 1000,
+    Min = 100,
+    Max = 5000,
+    Rounding = 0,
     Suffix = " studs",
-    Callback = function(Value)
-        Flags.SpeedValue = Value
+    Callback = function(v) Config.Aimbot.MaxDistance = v end,
+})
+CombatLeft:AddDropdown("AimbotPart", {
+    Values = { "Head", "HumanoidRootPart", "Torso" },
+    Default = "Head",
+    Text = "Target Part",
+    Callback = function(v) Config.Aimbot.Part = v end,
+})
+
+local CombatRight = Tabs.Combat:AddRightGroupbox("Silent & Wallbang", "target")
+CombatRight:AddToggle("SilentAimEnabled", {
+    Text = "Enable Silent Aim",
+    Default = false,
+    Callback = function(v) Config.SilentAim.Enabled = v end,
+})
+CombatRight:AddSlider("SilentFOV", {
+    Text = "FOV",
+    Default = 150,
+    Min = 10,
+    Max = 500,
+    Rounding = 0,
+    Suffix = " px",
+    Callback = function(v) Config.SilentAim.FOV = v end,
+})
+CombatRight:AddDropdown("SilentPart", {
+    Values = { "Head", "HumanoidRootPart", "Torso" },
+    Default = "Head",
+    Text = "Target Part",
+    Callback = function(v) Config.SilentAim.Part = v end,
+})
+CombatRight:AddToggle("WallbangEnabled", {
+    Text = "Enable Wallbang",
+    Default = false,
+    Callback = function(v) Config.Wallbang.Enabled = v end,
+})
+
+local TriggerGroup = Tabs.Combat:AddRightGroupbox("Triggerbot", "mouse-pointer-2")
+TriggerGroup:AddToggle("TriggerbotEnabled", {
+    Text = "Enable Triggerbot (no keybind)",
+    Default = false,
+    Callback = function(v) Config.Triggerbot.Enabled = v end,
+})
+TriggerGroup:AddSlider("TriggerbotRange", {
+    Text = "Range",
+    Default = 1000,
+    Min = 100,
+    Max = 3000,
+    Rounding = 0,
+    Suffix = " studs",
+    Callback = function(v) Config.Triggerbot.Range = v end,
+})
+
+-- ── VISUALS TAB ────────────────────────────────
+local VisualsLeft = Tabs.Visuals:AddLeftGroupbox("ESP", "eye")
+VisualsLeft:AddToggle("ESPEnabled", {
+    Text = "Enable ESP",
+    Default = false,
+    Callback = function(v) Config.ESP.Enabled = v end,
+})
+VisualsLeft:AddToggle("ESPBox", {
+    Text = "Box",
+    Default = true,
+    Callback = function(v) Config.ESP.Box = v end,
+})
+VisualsLeft:AddToggle("ESPName", {
+    Text = "Name",
+    Default = true,
+    Callback = function(v) Config.ESP.Name = v end,
+})
+VisualsLeft:AddToggle("ESPDistance", {
+    Text = "Distance",
+    Default = true,
+    Callback = function(v) Config.ESP.Distance = v end,
+})
+VisualsLeft:AddToggle("ESPHealth", {
+    Text = "Health Bar",
+    Default = true,
+    Callback = function(v) Config.ESP.Health = v end,
+})
+VisualsLeft:AddToggle("ESPTeamCheck", {
+    Text = "Team Check",
+    Default = true,
+    Callback = function(v) Config.ESP.TeamCheck = v end,
+})
+VisualsLeft:AddSlider("ESPMaxDistance", {
+    Text = "Max Distance",
+    Default = 1000,
+    Min = 100,
+    Max = 5000,
+    Rounding = 0,
+    Suffix = " studs",
+    Callback = function(v) Config.ESP.MaxDistance = v end,
+})
+VisualsLeft:AddColorPicker("ESPColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "ESP Color",
+    Callback = function(v) Config.ESP.Color = v end,
+})
+
+-- ── MISC TAB ──────────────────────────────────
+local MiscLeft = Tabs.Misc:AddLeftGroupbox("Movement", "zap")
+MiscLeft:AddToggle("WalkspeedEnabled", {
+    Text = "Walkspeed",
+    Default = false,
+    Callback = function(v) Config.Movement.Walkspeed.Enabled = v end,
+})
+MiscLeft:AddSlider("WalkspeedValue", {
+    Text = "Speed",
+    Default = 16,
+    Min = 16,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(v) Config.Movement.Walkspeed.Speed = v end,
+})
+MiscLeft:AddToggle("FlyEnabled", {
+    Text = "Fly",
+    Default = false,
+    Callback = function(v) Config.Movement.Fly.Enabled = v end,
+})
+MiscLeft:AddSlider("FlySpeed", {
+    Text = "Fly Speed",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Rounding = 0,
+    Callback = function(v) Config.Movement.Fly.Speed = v end,
+})
+MiscLeft:AddToggle("NoclipEnabled", {
+    Text = "Noclip",
+    Default = false,
+    Callback = function(v) Config.Movement.Noclip.Enabled = v end,
+})
+
+local MiscRight = Tabs.Misc:AddRightGroupbox("Name Spoofer", "user")
+MiscRight:AddToggle("NameSpoofEnabled", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Config.Misc.NameSpoof.Enabled = v
+        if v then
+            LocalPlayer.DisplayName = Config.Misc.NameSpoof.Name
+            LocalPlayer.Name = Config.Misc.NameSpoof.Name
+        end
+    end,
+})
+MiscRight:AddInput("NameSpoofValue", {
+    Text = "Custom Name",
+    Default = "Arsenal User",
+    Placeholder = "Enter name...",
+    Callback = function(v)
+        Config.Misc.NameSpoof.Name = v
+        if Config.Misc.NameSpoof.Enabled then
+            LocalPlayer.DisplayName = v
+            LocalPlayer.Name = v
+        end
+    end,
+})
+
+-- ── UI SETTINGS TAB ──────────────────────────
+local UISettings = Tabs["UI Settings"]
+UISettings:AddLeftGroupbox("Menu", "wrench")
+    :AddToggle("KeybindMenuOpen", {
+        Text = "Open Keybind Menu",
+        Default = Library.KeybindFrame.Visible,
+        Callback = function(v) Library.KeybindFrame.Visible = v end,
+    })
+    :AddToggle("ShowCustomCursor", {
+        Text = "Custom Cursor",
+        Default = true,
+        Callback = function(v) Library.ShowCustomCursor = v end,
+    })
+    :AddDropdown("NotificationSide", {
+        Values = { "Left", "Right" },
+        Default = "Right",
+        Text = "Notification Side",
+        Callback = function(v) Library:SetNotifySide(v) end,
+    })
+    :AddDropdown("DPIDropdown", {
+        Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
+        Default = "100%",
+        Text = "DPI Scale",
+        Callback = function(v)
+            local DPI = tonumber(v:gsub("%%", ""))
+            Library:SetDPIScale(DPI)
+        end,
+    })
+    :AddSlider("UICornerSlider", {
+        Text = "Corner Radius",
+        Default = Library.CornerRadius,
+        Min = 0,
+        Max = 20,
+        Rounding = 0,
+        Callback = function(v) Window:SetCornerRadius(v) end,
+    })
+    :AddDivider()
+    :AddLabel("Menu bind")
+    :AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
+    :AddButton("Unload", function() Library:Unload() end)
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- =============================================
+--   THEME & SAVE MANAGER
+-- =============================================
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+
+ThemeManager:SetFolder("ArsenalHub")
+SaveManager:SetFolder("ArsenalHub/configs")
+SaveManager:SetSubFolder("settings")
+
+SaveManager:BuildConfigSection(UISettings)
+ThemeManager:ApplyToTab(UISettings)
+
+SaveManager:LoadAutoloadConfig()
+
+-- =============================================
+--   INIT
+-- =============================================
+Library:SetWatermarkVisibility(true)
+Library:OnUnload(function()
+    FOVCircle:Remove()
+    for _, obj in pairs(ESPObjects) do
+        obj.Box:Remove()
+        obj.Name:Remove()
+        obj.Distance:Remove()
+        obj.Health:Remove()
+        obj.HealthFill:Remove()
     end
-})
+    print("[Arsenal Hub] Unloaded!")
+end)
 
--- // Platform Section
-local PlatformSection = PlayerPage:Section({Name = "Platform", Side = 2})
-
-PlatformSection:Button({
-    Name = "Fire Platform (Mobile Bypass)",
-    Callback = function()
-        FirePlatform()
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Platform Fired!",
-            Duration = 2,
-            Icon = "73789337996373"
-        })
-    end
-})
-
---[[
-    ═══════════════════════════════
-            MISC PAGE
-    ═══════════════════════════════
-]]
-
-Window:Category("Misc")
-
-local MiscPage = Window:Page({Name = "Misc", Icon = "138827881557940"})
-local MiscSection = MiscPage:Section({Name = "Server", Side = 1})
-
-MiscSection:Button({
-    Name = "Fire Teleporting Effect",
-    Callback = function()
-        FireCustomServerTeleporting()
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Teleporting Effect Fired!",
-            Duration = 2,
-            Icon = "73789337996373"
-        })
-    end
-})
-
-MiscSection:Button({
-    Name = "Fire Creating Server",
-    Callback = function()
-        FireCreatingServer()
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Creating Server Fired!",
-            Duration = 2,
-            Icon = "73789337996373"
-        })
-    end
-})
-
-local MiscSection2 = MiscPage:Section({Name = "Notifications", Side = 2})
-
-MiscSection2:Button({
-    Name = "Test Notification",
-    Callback = function()
-        Library:Notification({
-            Title = "TSB Script",
-            Description = "Script is working perfectly!",
-            Duration = 5,
-            Icon = "73789337996373"
-        })
-    end
-})
-
---[[
-    ═══════════════════════════════
-            SETTINGS PAGE
-    ═══════════════════════════════
-]]
-
-Window:Category("Settings")
-local SettingsPage = Library:CreateSettingsPage(Window, KeybindList)
-
---[[
-    ═══════════════════════════════
-               INIT
-    ═══════════════════════════════
-]]
-
-Window:Init()
-
--- // Fire Platform on load (mobile bypass)
-task.wait(1)
-FirePlatform()
-
-print("[TSB Script] Loaded Successfully ✅")
-
-Library:Notification({
-    Title = "TSB Script",
-    Description = "Script Loaded Successfully!",
-    Duration = 5,
-    Icon = "73789337996373"
-})
+print("[Arsenal Hub] Loaded successfully!")
